@@ -27,9 +27,15 @@ theme:
       primary: teal
       accent: lime
 
+nav:
+  - Home: index.md
+  - Python file: 00_directed_acyclic_graphs.py
+
 plugins:
   # - social
   - search
+  - mkdocs-jupyter:
+      execute: true
 
 extra:
   social:
