@@ -5,6 +5,7 @@ theme:
   features:
     - navigation.tabs
     - navigation.sections
+    - navigation.indexes
     - toc.integrate
     - navigation.top
     - search.suggest
@@ -30,12 +31,15 @@ theme:
 nav:
   - Home: index.md
   - Python file: 00_directed_acyclic_graphs.py
+  - Blog:
+    - blog/index.md
 
 plugins:
   # - social
   - search
   - mkdocs-jupyter:
       execute: true
+  - blog
 
 extra:
   social:
