@@ -30,7 +30,9 @@ theme:
 
 nav:
   - Home: index.md
-  - Python file: 00_directed_acyclic_graphs.py
+  - Species Distribution Models:
+    - cnn-sdm: species_distribution/01_cnn_sdm.py
+    - gbif-data: species_distribution/02_gbif_data.py
   - Blog:
     - blog/index.md
 
@@ -38,7 +40,7 @@ plugins:
   # - social
   - search
   - mkdocs-jupyter:
-      execute: false
+      execute: true
   - blog
 
 extra:

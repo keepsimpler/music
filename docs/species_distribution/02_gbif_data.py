@@ -11,4 +11,3 @@ out = [ occ.search(taxonKey = x, limit=0)['count'] for x in keys ]
 # %%
 x = dict(zip(splist, out))
 sorted(x.items(), key=lambda z:z[1], reverse=True)
-# %%
