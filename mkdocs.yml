@@ -38,7 +38,7 @@ plugins:
   # - social
   - search
   - mkdocs-jupyter:
-      execute: true
+      execute: false
   - blog
 
 extra:
