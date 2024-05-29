@@ -30,6 +30,8 @@ theme:
 
 nav:
   - Home: index.md
+  - Deep Learning Models:
+    - deep-iter: deep_learning_models/01_deep_iter.py
   - Species Distribution Models:
     - cnn-sdm: species_distribution/01_cnn_sdm.py
     - gbif-data: species_distribution/02_gbif_data.py
@@ -40,7 +42,7 @@ plugins:
   # - social
   - search
   - mkdocs-jupyter:
-      execute: true
+      execute: false
   - blog
 
 extra:
