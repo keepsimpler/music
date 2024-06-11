@@ -11,6 +11,21 @@ __pycache__/
 *.tif
 *.xml
 
+# latex
+*.bst
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.sty
+*.synctex.gz
+*.toc
+*.cls
+*.eps
+*.pdf
+
 # Distribution / packaging
 .Python
 build/
