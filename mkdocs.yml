@@ -3,7 +3,9 @@ site_url: https://keepsimpler.github.io/sunyata/
 theme:
   name: material
   features:
-    - navigation.tabs
+    # - navigation.tabs
+    - navigation.instant
+    - navigation.instant.prefetch
     - navigation.sections
     - navigation.indexes
     - toc.integrate
@@ -33,10 +35,12 @@ nav:
   - Deep Learning Models:
     - deep-iter: deep_learning_models/01_deep_iter.py
   - Species Distribution Models:
-    - cnn-sdm: species_distribution/01_cnn_sdm.py
-    - gbif-data: species_distribution/02_gbif_data.py
-  - Blog:
-    - blog/index.md
+    - Introduction: species_distribution/01_sdm.py
+    - Introduction in Chinese: species_distribution/01_sdm_zh.ipynb
+    - Data:
+      - gbif-data: species_distribution/02_gbif_data.py
+  # - Blog:
+  #   - blog/index.md
 
 plugins:
   # - social
