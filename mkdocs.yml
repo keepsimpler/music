@@ -38,7 +38,7 @@ nav:
     - Introduction: species_distribution/01_sdm.py
     - Introduction in Chinese: species_distribution/01_sdm_zh.ipynb
     - Data:
-      - gbif-data: species_distribution/02_gbif_data.py
+      - GBIF Python API: species_distribution/02_gbif_api.py
   # - Blog:
   #   - blog/index.md
 
