@@ -39,6 +39,7 @@ nav:
     - Introduction in Chinese: species_distribution/01_sdm_zh.ipynb
     - Data:
       - GBIF Python API: species_distribution/02_gbif_api.py
+      - Torchgeo and Planetary Computer: species_distribution/03_gbif.py
   # - Blog:
   #   - blog/index.md
 
