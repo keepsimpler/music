@@ -1,0 +1,152 @@
+\documentclass[anon,12pt]{colt2024} % Anonymized submission
+%\documentclass[final,12pt]{colt2024} % Include author names
+
+% The following packages will be automatically loaded:
+% amsmath, amssymb, natbib, graphicx, url, algorithm2e
+
+\title[Short Title]{EDIT: Encoder-Decoder Image Transformer}
+\usepackage{times}
+% Use \Name{Author Name} to specify the name.
+% If the surname contains spaces, enclose the surname
+% in braces, e.g. \Name{John {Smith Jones}} similarly
+% if the name has a "von" part, e.g \Name{Jane {de Winter}}.
+% If the first letter in the forenames is a diacritic
+% enclose the diacritic in braces, e.g. \Name{{\'E}louise Smith}
+
+% Two authors with the same address
+% \coltauthor{\Name{Author Name1} \Email{abc@sample.com}\and
+%  \Name{Author Name2} \Email{xyz@sample.com}\\
+%  \addr Address}
+
+% Three or more authors with the same address:
+% \coltauthor{\Name{Author Name1} \Email{an1@sample.com}\\
+%  \Name{Author Name2} \Email{an2@sample.com}\\
+%  \Name{Author Name3} \Email{an3@sample.com}\\
+%  \addr Address}
+
+% Authors with different addresses:
+\coltauthor{%
+ \Name{Author Name1} \Email{abc@sample.com}\\
+ \addr Address 1
+ \AND
+ \Name{Author Name2} \Email{xyz@sample.com}\\
+ \addr Address 2%
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}%
+  This is a great paper and it has a concise abstract.%
+\end{abstract}
+
+\begin{keywords}%
+  List of keywords%
+\end{keywords}
+
+\section{Introduction}
+
+Deep neural networks have become the fundamental infrastructure in today's artificial intelligence systems. 
+% There are different types of deep neural networks, such as multi-layer perceptron (MLP), convolutional neural networks (CNN), and etc.
+Transformer is a new type of deep neural network incorporated recently.
+It mainly utilized the self-attention mechanism and/or cross-attention mechanism to extract intrinsic features.
+Transformer was first applied to natural language processing (NLP) tasks where it achieved significant improvements.
+Inspired by the major success of transformer architectures in the field of NLP, researchers have recently applied transformer to computer vision (CV) tasks.
+
+Among transformers in CV, vision transformer (ViT) is a pure transformer directly applies to sequences of image patches for image classification task.
+It has achieved state-of-the-art performance on multiple image recognition benchmarks.
+
+In ViT, an image $\mathbf{x} \in \mathbb{R} ^ {h \times w \times c}$ is split into a sequence of flattened patches $\mathbf{x} \in \mathbb{R} ^ {n \times (p^2 \cdot c)}$ where $c$ is the number of channels, $(h,w)$ is the resolution of the original image, $(p,p)$ is the resolution of each image patch, and $n=hw/p^2$ is the number of patches.
+Each flattened patch is then linearly projected to a patch embedding to produce a sequence of patch embeddings $\mathbf{x}_p \in \mathbb{R} ^ {n \times d}$ where $d$ is the embedded dimension size (or model dimension size).
+To capture positional information, learnable position embeddings $\mathbf{pos} \in \mathbb{R} ^ {n \times d}$ are added to the sequence of patch embeddings to get the resulting sequence of patch and position embeddings $\mathbf{p}_0 = \mathbf{x}_p + \mathbf{pos}$.
+After that, a learnable class embedding $\mathbf{c}_0 \in \mathbb{R}^d$ is concatenated to the sequence of patch and position embedding to produce the input sequence of tokens $\mathbf{z}_0 = \mathrm{concat}(\mathbf{p}_0,  \mathbf{c}_0) \in \mathbb{R} ^ {(n+1) \times d}$ for the ViT backbone.
+
+The ViT backbone composed of $l$ layers is applied to the sequence of tokens $\mathbf{z}_0$ to generate a sequence of encodings $\mathbf{z}_l \in \mathbb{R} ^ {(n+1) \times d}$.
+A ViT layer consists of a multi-head self-attention (MSA) block followed by a feed-forward network (FFN) block with layer norm (LN) applied before every block and residual connections added after every block:
+\begin{eqnarray}
+  \mathbf{a_{i-1}} &=& \mathbf{MSA}(\mathbf{LN}(\mathbf{z_{i-1}})) + \mathbf{z_{i-1}} , \\
+  \mathbf{z_{i}} &=& \mathbf{FFN}(\mathbf{LN}(\mathbf{a_{i-1}})) + \mathbf{a_{i-1}},
+\end{eqnarray}
+where $i \in \{1,\ldots,l\}$.
+
+The self-attention mechanism is composed of three point-wise linear layers mapping tokens to three intermediate representations, queries $\mathbf{q} \in \mathbb{R}^{(n+1) \times d}$, keys $\mathbf{k} \in \mathbb{R}^{(n+1) \times d}$ and values $\mathbf{v} \in \mathbb{R}^{(n+1) \times d}$.
+Self-attention is then computed as follows:
+\begin{equation}
+   \mathbf{MSA}(\mathbf{q}, \mathbf{k}, \mathbf{v}) = \mathrm{softmax} \left( \frac{\mathbf{q}\mathbf{k}^T}{\sqrt{d}} \right)  \mathbf{v}.
+\end{equation}
+
+A FFN block is applied after the MSA block. It consists of two linear transformations and a nonlinear activation function within them, and can be denoted as the following function:
+\begin{equation}
+  \mathbf{FFN}(\mathbf{a}) = \mathbf{w_2} \cdot \sigma(\mathbf{w_1} \cdot \mathbf{a}),
+\end{equation}
+where $\mathbf{w_1}$ and $\mathbf{w_2}$ are two learnable matrices of the two linear transformations, $\sigma$ represents the nonlinear activation function, such as GELU [], and  $\mathbf{a}$ is the output of the MSA block.
+
+The output of ViT backbone $\mathbf{z}_l$ is feed into the ViT head, who first splits the generated encodings $\mathbf{z}_l$ into two partitions, the patch and position encodings $\mathbf{p}_l \in \mathbb{R} ^ {n \times d}$ and the class encoding $\mathbf{c}_l \in \mathbb{R}^d$, then extracts the class encoding.
+After that, a linear transformation is applied to the class encoding $\mathbf{c}_l$ to produce a logits vector. A softmax layer is then used to transform the logits into class probabilities.
+
+\subsection{The problem of the ViT architecture}
+
+In ViT, the input sequence of tokens for the ViT backbone, $\mathbf{z}_0$, is formed by concatenating the sequence of patch and position embedding  $\mathbf{p}_0$, and the class embedding  $\mathbf{c}_0$, where $\mathbf{c}_0$ is usually called [CLS] token.
+The design of the [CLS] token is inherited from the BERT model \cite{devlin2018bert}.%, in which the [CLS] token stands for sentence-level classification.
+The ViT backbone then utilizes self-attention mechanism to learn the attention between all these tokens.
+There are therefore three parts of the attention between tokens. Firstly, attention between patch/position tokens are used to represent the image's features. Secondly, the [CLS] token's attention to patch/position tokens reflects the importance of different features of the image for classification. Thirdly, patch/position tokens pay attention to CLS tokens.
+The first part of the attention is the self-attention between patch/position tokens, the second part is the cross-attention between the class token and patch/position tokens, and the third part is actually not needed or even harmful.
+However, in ViT, these three parts are mixed and merged together, which introduces irrelevant information and increases the complexity of the model [cait].
+In fact, some authors of the ViT model proposed in a later paper \cite{beyer2022better} that using 1d Global Average Pooling (GAP) instead of [CLS] tokens could even improve performance.
+% In ViT, the same learnable weights are asked to optimize two unrelated, even contradictory objectives: (1) guiding the self-attention between patches while (2) summarizing the information useful to the linear classifier.We argue that this may damage the performance.
+
+Our proposal is to explicitly separate the [CLS] token from the patch/position tokens, use the original self-attention layers to capture the attention between patch/position tokens, and introduce new cross-attention layers to extract the attention of the [CLS] token to the patch/position tokens.
+We argue that this explicit separation avoids the contradiction and complexity of the traditional [CLS] token in ViT, and improves performance.
+% Our proposal is to explicitly separate the transformer layers involving self-attention between patches from the cross-attention layers that are devoted to extract the content of the processed patches into a feature vector so that it can be fed to a linear classifier.
+% Therefore, the self-attention layers is dedicated to capture the attentions between patches, while the cross-attention layers is dedicated to capture the attentions of the classifier to the patches.
+% This explicit separation avoids the contradictory objective of guiding the attention process while processing the class embedding.
+
+\section{Our proposal}
+Our design of the architecture is a kind of encoder-decoder architecture, where the encoder involves self-attention between patches, and the decoder extract attention of the [CLS] token to the patch and position tokens.
+
+But, our architecture is not like the traditional encoder-decoder architecture.
+The traditional encoder-decoder architecture is typically designed as following:
+The encoder takes the source tokens (patches and positions here) as inputs and generates a set of hidden representations for those tokens layer by layer, gradually from low level to high level. Then the decoder takes the last-layer (the highest level) representations from the encoder as inputs, generates hidden representations for target tokens ([CLS] token here) from low-level layers to high-level ones.
+% We can see that the generation of hidden representations for target tokens, no matter high level or low level, are all based on the highest-level representations of the source tokens.
+
+% Then questions come out naturally: Why should the low-level representation of target token based on the highest-level ones of source tokens? Why not attending each layer of the decoder to each corresponding layer of the encoder?
+
+Instead, in our design of the architecture, the encoder and decoder are aligned layer by layer.
+Therefore, the encoder and decoder of our model have the same number of layers, and the $i$-th layer in the decoder is aligned and coordinated with the $i$-th layer of the encoder.
+The hidden representation of a source token in the $i$-th layer using the self-attention mechanism, and that of a target token in the $i$-th layers is generated from the hidden representation of all source tokens and preceding target tokens in the $(i-1)$-th layer using a cross-attention mechanism.
+Consequently, the decoder can extract the information from the source targets starting from the low-level representation layer by layer, and leverage more fine-grained source information, instead of only using high-level representations outputted by the encoder. Such an approach has been shown to be effective for Neural Machine Translation (NMT) \cite{he2018layer}.
+
+The architecture of our model is illustrated in Figure \ref{fig1}.
+The left half of Figure \ref{fig1} is the whole architecture. The image patches are transformed into a sequence of tokens by the Tokenizer block. The sequence of tokens and the [CLS] token are separately as two inputs of the backbone. The backbone composed of $N$ identical layers. Each layer accept two inputs and produce two outputs as the inputs of the next layer. The [CLS] token output of the final layer enter into the Linear and Softmax block to produce the output probabilities.
+
+The right half of Figure \ref{fig1} is the structure of each layer. Each layer has two aligned sub-layers, the encoder layer and the decoder layer. The encoder layer is exactly same with the layer of the ViT model, which further composed of two sub-layers. The first is a multi-head self-attention mechanism and the seconde is a simple fully connected feed-forward network, both preceded by a layer normalization. And a residual connection around each of the two sub-layers are employed. The decoder layer has a cross-attention mechanism to fuse the output of its aligned encoder layer and the output of the precede decoder layer. And a residual connection around the cross-attention are employed and  followed by a layer normalization. 
+
+It need noted that the decoder layers share their weights, which is illustrated by the dashed outline in the  Figure \ref{fig1}.
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.45\textwidth]{arch.pdf}
+  \includegraphics[width=0.45\textwidth]{arch2.pdf}
+  \caption{The architecture of Encoder-Decoder Image Transformer (EDIT)}\label{fig1}
+\end{figure}
+  
+% Acknowledgments---Will not appear in anonymized version
+\acks{We thank a bunch of people and funding agency.}
+
+\bibliography{custom}
+
+\appendix
+
+% \crefalias{section}{appendix} % uncomment if you are using cleveref
+
+\section{My Proof of Theorem 1}
+
+This is a boring technical proof.
+
+\section{My Proof of Theorem 2}
+
+This is a complete version of a proof sketched in the main text.
+
+\end{document}
