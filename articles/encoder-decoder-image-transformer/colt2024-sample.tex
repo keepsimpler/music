@@ -4,7 +4,10 @@
 % The following packages will be automatically loaded:
 % amsmath, amssymb, natbib, graphicx, url, algorithm2e
 
-\title[Short Title]{EDIT: Encoder-Decoder Image Transformer}
+\title[Short Title]{
+  % EDIT: Encoder-Decoder Image Transformer
+  EDiT: A Novel Encoder-Decoder Approach to Image Transformers
+  }
 \usepackage{times}
 % Use \Name{Author Name} to specify the name.
 % If the surname contains spaces, enclose the surname
@@ -38,7 +41,14 @@
 \maketitle
 
 \begin{abstract}%
-  This is a great paper and it has a concise abstract.%
+  The transformer architectures in computer vision have been much explored both in supervising learning literature such as ViT, Deit, etc., and self-supervising learning literature such as MAE, DINO, etc.
+  However, in all these architectures, the hidden representations of images are generated through an encoder architecture.
+  Here, we introduce an Encoder-Decoder architecture by incorporating an decoder architecture.
+  The decoder is aligned with the encoder layer by layer, therefore, the decoder can extract the information from the source targets starting from the low-level representation layer by layer, and leverage more fine-grained source information.
+  The experiments show that the Encoder-Decoder image Transformer (EDiT) performs better then DeiT in image classification and better then MAE in downstream tasks.
+  
+  The application of transformer architectures in computer vision has been extensively studied in both supervised learning, with models such as ViT and DeiT, and self-supervised learning, with models such as MAE and DINO. However, these architectures typically generate hidden image representations using only an encoder. In this paper, we introduce an Encoder-Decoder architecture that incorporates a decoder aligned with the encoder layer by layer. This design allows the decoder to extract information progressively from low-level to high-level representations, leveraging more fine-grained source information. Our experiments demonstrate that the Encoder-Decoder image Transformer (EDiT) outperforms DeiT in image classification and surpasses MAE in various downstream tasks.
+  
 \end{abstract}
 
 \begin{keywords}%
