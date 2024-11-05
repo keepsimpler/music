@@ -52,21 +52,64 @@
 \end{abstract}
 
 \begin{keywords}%
-  List of keywords%
+  encoder-decoder architecture; attention sink; computer vision; self distillation%
 \end{keywords}
 
 \section{Introduction}
 
 Deep neural networks have become the fundamental infrastructure in today's artificial intelligence systems. 
-% There are different types of deep neural networks, such as multi-layer perceptron (MLP), convolutional neural networks (CNN), and etc.
-Transformer is a new type of deep neural network incorporated recently.
-It mainly utilized the self-attention mechanism and/or cross-attention mechanism to extract intrinsic features.
-Transformer was first applied to natural language processing (NLP) tasks where it achieved significant improvements.
+Transformer \cite{vaswani2017attention} is a new type of deep neural network incorporated recently.
+It mainly utilized the self-attention mechanism and cross-attention mechanism to extract intrinsic features.
+Transformer was first applied to natural language processing (NLP) tasks \cite{vaswani2017attention, devlin2018bert,radford2018improving, brown2020language,ouyang2022training} where it achieved significant improvements.
 Inspired by the major success of transformer architectures in the field of NLP, researchers have recently applied transformer to computer vision (CV) tasks.
 
-Among transformers in CV, vision transformer (ViT) is a pure transformer directly applies to sequences of image patches for image classification task.
+Among transformers in CV, Vision Transformer (ViT) is a pure transformer model directly applies to sequences of image patches for image classification task.
 It has achieved state-of-the-art performance on multiple image recognition benchmarks.
 
+ViT first transforms image patches to a sequence of input tokens, then, a special [CLS] token is added at the beginning of the sequence to aggregate information for classification tasks.
+In this paper, we question whether the mixture of input tokens and the [CLS] token reduce the performance of ViT.
+
+% \subsection{The problem of the ViT architecture}
+
+In order for that, first let's come back to the original transformer architecture. 
+The original transformer architecture \cite{vaswani2017attention}, which was developed for English-to-French and English-to-German language translation, utilized both an encoder and a decoder.
+The encoder part in the original transformer is responsible for understanding and extracting the relevant information from the input text (source language). It then outputs a continuous representation (embedding) of the input text that is passed to the decoder. Finally, the decoder generates the translated text (target language) based on the continuous representation received from the encoder and the previously generated translated text. 
+
+Since then, improvements to the transformer architecture have produced two important branches. 
+The first is the decoder-only models, which select the decoder part of the original transformer architecture and discards the encoder part. 
+They are suitable for some types of generative tasks such as Q\&A.
+A representative example is the GPT \cite{radford2018improving, brown2020language,ouyang2022training} series of models.
+The second branch is the encoder-only models. In contrast to the previous branch, they select the encoder part of the original transformer architecture and discards the decoder part.
+They are suitable for classification tasks. A representative example is the BERT \cite{devlin2018bert} model. 
+
+ViT model was created by applying the BERT model to the field of computer vision.
+% In ViT, the input sequence of tokens for the ViT backbone, $\mathbf{z}_0$, is formed by concatenating the sequence of patch and position embedding  $\mathbf{p}_0$, and the class embedding  $\mathbf{c}_0$, where $\mathbf{c}_0$ is usually called [CLS] token.
+The design of the [CLS] token is inherited from the BERT model \cite{devlin2018bert}.%, in which the [CLS] token stands for sentence-level classification.
+The ViT backbone then utilizes self-attention mechanism to learn the attention between all these tokens.
+There are therefore three parts of the attention between tokens. Firstly, attention between input tokens are used to represent the image's features. Secondly, the [CLS] token's attention to input tokens reflects the importance of different features of the image for classification. Thirdly, input tokens pay attention to CLS tokens.
+The first part of the attention is the self-attention between input tokens, the second part is the cross-attention between the class token and input tokens, and the third part is actually not needed or even harmful.
+However, in ViT, these three parts are mixed and merged together, which introduces irrelevant information and increases the complexity of the model [cait].
+In fact, some authors of the ViT model proposed in a later paper \cite{beyer2022better} that using 1d Global Average Pooling (GAP) instead of [CLS] tokens could even improve performance.
+% In ViT, the same learnable weights are asked to optimize two unrelated, even contradictory objectives: (1) guiding the self-attention between patches while (2) summarizing the information useful to the linear classifier.We argue that this may damage the performance.
+
+One piece of evidence supporting our point of view is the attention sink phenomenon we found in ViT.
+The phenomenon of attention sink was first found in transformer-based language models \cite{xiaoefficient} refers to the tendency for a disproportionate amount of attention to be allocated to the initial tokens in a sequence, regardless of their semantic relevance.
+This occurs due to the SoftMax function in attention mechanisms, which requires attention scores to sum to one.
+Consequently, when there is no strong match for the current query among earlier tokens, excess attention is often directed towards these initial tokens, making them act as 'sinks' for unused attention values.
+
+Similar to the attention sink phenomenon observed in transformer-based language models, we have identified an analogous phenomenon in ViT models, as illustrated in Figure . In these models, a disproportionate amount of attention is allocated to the [CLS] token compared to other input tokens.
+This bias towards the [CLS] token arises from the mixture of input tokens and the [CLS] token within ViT models.
+The blending of these tokens can lead to conflicting objectives during attention processing, ultimately affecting the model's ability to effectively represent image features for classification tasks. 
+
+In order to address this mixture of input tokens and the [CLS] token, we refer to the original encoder-decoder architecture, and propose to explicitly separate the [CLS] token from the input tokens, use the original self-attention layers to capture the attention between input tokens, and introduce new cross-attention layers to extract the attention of the [CLS] token to the input tokens.
+We argue that this explicit separation avoids the contradiction and complexity of the traditional [CLS] token in ViT, and improves performance.
+% Our proposal is to explicitly separate the transformer layers involving self-attention between patches from the cross-attention layers that are devoted to extract the content of the processed patches into a feature vector so that it can be fed to a linear classifier.
+% Therefore, the self-attention layers is dedicated to capture the attentions between patches, while the cross-attention layers is dedicated to capture the attentions of the classifier to the patches.
+% This explicit separation avoids the contradictory objective of guiding the attention process while processing the class embedding.
+
+\section{Related work}
+
+\subsection{Vision Transformer (ViT)}
 In ViT, an image $\mathbf{x} \in \mathbb{R} ^ {h \times w \times c}$ is split into a sequence of flattened patches $\mathbf{x} \in \mathbb{R} ^ {n \times (p^2 \cdot c)}$ where $c$ is the number of channels, $(h,w)$ is the resolution of the original image, $(p,p)$ is the resolution of each image patch, and $n=hw/p^2$ is the number of patches.
 Each flattened patch is then linearly projected to a patch embedding to produce a sequence of patch embeddings $\mathbf{x}_p \in \mathbb{R} ^ {n \times d}$ where $d$ is the embedded dimension size (or model dimension size).
 To capture positional information, learnable position embeddings $\mathbf{pos} \in \mathbb{R} ^ {n \times d}$ are added to the sequence of patch embeddings to get the resulting sequence of patch and position embeddings $\mathbf{p}_0 = \mathbf{x}_p + \mathbf{pos}$.
@@ -95,24 +138,25 @@ where $\mathbf{w_1}$ and $\mathbf{w_2}$ are two learnable matrices of the two li
 The output of ViT backbone $\mathbf{z}_l$ is feed into the ViT head, who first splits the generated encodings $\mathbf{z}_l$ into two partitions, the patch and position encodings $\mathbf{p}_l \in \mathbb{R} ^ {n \times d}$ and the class encoding $\mathbf{c}_l \in \mathbb{R}^d$, then extracts the class encoding.
 After that, a linear transformation is applied to the class encoding $\mathbf{c}_l$ to produce a logits vector. A softmax layer is then used to transform the logits into class probabilities.
 
-\subsection{The problem of the ViT architecture}
+\subsection{Self-supervised learning}
+Recent advancements in self-supervised learning (SSL) \cite{he2022masked,wang2023image,caron2021emerging,oquab2024dinov} have increasingly utilized ViT as backbones, particularly in self-distillation models.
+A self-distillation model is a type of self-supervised learning framework in which a neural network (the student) is trained to improve its performance by learning from the predictions of its own earlier iteration or from another instance of itself (the teacher).
+In this process, the model utilizes its own outputs as pseudo-labels or guidance for training, rather than relying on external labels.
 
-In ViT, the input sequence of tokens for the ViT backbone, $\mathbf{z}_0$, is formed by concatenating the sequence of patch and position embedding  $\mathbf{p}_0$, and the class embedding  $\mathbf{c}_0$, where $\mathbf{c}_0$ is usually called [CLS] token.
-The design of the [CLS] token is inherited from the BERT model \cite{devlin2018bert}.%, in which the [CLS] token stands for sentence-level classification.
-The ViT backbone then utilizes self-attention mechanism to learn the attention between all these tokens.
-There are therefore three parts of the attention between tokens. Firstly, attention between patch/position tokens are used to represent the image's features. Secondly, the [CLS] token's attention to patch/position tokens reflects the importance of different features of the image for classification. Thirdly, patch/position tokens pay attention to CLS tokens.
-The first part of the attention is the self-attention between patch/position tokens, the second part is the cross-attention between the class token and patch/position tokens, and the third part is actually not needed or even harmful.
-However, in ViT, these three parts are mixed and merged together, which introduces irrelevant information and increases the complexity of the model [cait].
-In fact, some authors of the ViT model proposed in a later paper \cite{beyer2022better} that using 1d Global Average Pooling (GAP) instead of [CLS] tokens could even improve performance.
-% In ViT, the same learnable weights are asked to optimize two unrelated, even contradictory objectives: (1) guiding the self-attention between patches while (2) summarizing the information useful to the linear classifier.We argue that this may damage the performance.
+DINO (Self-DIstillation with NO labels) \cite{caron2021emerging,oquab2024dinov} is a prominent self-distillation model that employs a ViT backbone to achieve state-of-the-art in self-supervised image representation learning. It utilizes a teacher-student framework where the student model learns from the teacher's outputs, which are themselves predictions derived from the same model. The teacher's parameters are freezed at the backpropagation stage, and then are updated from the student's parameters using exponential moving averages.
 
-Our proposal is to explicitly separate the [CLS] token from the patch/position tokens, use the original self-attention layers to capture the attention between patch/position tokens, and introduce new cross-attention layers to extract the attention of the [CLS] token to the patch/position tokens.
-We argue that this explicit separation avoids the contradiction and complexity of the traditional [CLS] token in ViT, and improves performance.
-% Our proposal is to explicitly separate the transformer layers involving self-attention between patches from the cross-attention layers that are devoted to extract the content of the processed patches into a feature vector so that it can be fed to a linear classifier.
-% Therefore, the self-attention layers is dedicated to capture the attentions between patches, while the cross-attention layers is dedicated to capture the attentions of the classifier to the patches.
-% This explicit separation avoids the contradictory objective of guiding the attention process while processing the class embedding.
 
 \section{Our proposal}
+
+\subsection{Phenomenon of \textit{Attention sink} in ViT models}
+
+To illustrate the phenomenon of attention sink, we downloaded the two ViT-based image classification models \cite{touvron2021training} pre-trained on ImageNet-1k, as provided by the authors of the paper. We extracted the attention maps from all 12 layers and computed the amount of attention allocated to the [CLS] token, alongside the mean attention value directed towards the other input tokens. 
+These results were then visualized in Figure to effectively demonstrate the attention distribution across the layers and highlight the disproportionate focus on the [CLS] token.
+
+
+
+
+\subsection{Encoder-Decoder Image Transformer (EDIT)}
 Our design of the architecture is a kind of encoder-decoder architecture, where the encoder involves self-attention between patches, and the decoder extract attention of the [CLS] token to the patch and position tokens.
 
 But, our architecture is not like the traditional encoder-decoder architecture.
