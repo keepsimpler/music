@@ -35,7 +35,7 @@
 
     % encoder layer nodes
     \node[] (encoder_layer_text) at (0,0) {\sffamily \LARGE Encoder Layer};
-    \node[block, minimum width=5.5cm, minimum height=9cm, line width=0.5mm, draw=black] (encoder_layer_outline) [above=of encoder_layer_text] {};
+    \node[block, minimum width=5.5cm, minimum height=9cm, line width=0.5mm, draw=black, fill=blue!20] (encoder_layer_outline) [above=of encoder_layer_text] {};
     \node[block] (layer_norm1) [above= 1.5cm of encoder_layer_text] {\sffamily \LARGE Layer Norm};
     \node[block] (self_attn) [above=of layer_norm1] {\sffamily \LARGE Self Attention};
     \node[sum] (residual1) [above=0.5cm of self_attn] {\LARGE +};
@@ -46,7 +46,7 @@
     
     % decoder layer nodes
     \node[] (decoder_layer_text) at (8,0) {\sffamily \LARGE Decoder Layer};
-    \node[block, minimum width=5.5cm, minimum height=5.5cm,, line width=0.5mm, draw=black, dashed] (decoder_layer_outline) [above=2.5cm of decoder_layer_text] {};
+    \node[block, minimum width=5.5cm, minimum height=5.5cm, line width=0.5mm, draw=black, dashed, fill=blue!20] (decoder_layer_outline) [above=2.5cm of decoder_layer_text] {};
     \node[block] (cross_attn) [above= 3cm of decoder_layer_text] {\sffamily \LARGE Cross Attention};
     \node[sum] (decoder_residual) [above=of cross_attn] {\LARGE +};
     \node[block] (decoder_layer_norm) [above=of decoder_residual] {\sffamily \LARGE Layer Norm};

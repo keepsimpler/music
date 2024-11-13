@@ -44,15 +44,15 @@
     \node[] (text_cls_token) [below=0 of cls_token] {\sffamily \Large [CLS] Token};
 
 
-    \node[block, fill=orange!30] (tokenizer) [above = 1cm of image5] {\sffamily \huge Tokenizer};
-    \node[block, fill=blue!20] (encoder_layer) [above = 1.5cm of tokenizer] {\sffamily \huge Encoder Layer};
-    \node[block, fill=blue!20, dashed] (decoder_layer) [above = 3.44cm of cls_token] {\sffamily \huge Decoder Layer};
-    \node[block, fill=blue!20] (linear) [above = 1.5cm of decoder_layer] {\sffamily \huge Linear};
+    \node[block, fill=orange!30] (tokenizer) [above = 1cm of image5] {\sffamily \Large Tokenizer};
+    \node[block, fill=blue!20, line width=0.5mm] (encoder_layer) [above = 1.5cm of tokenizer] {\sffamily \huge Encoder Layer};
+    \node[block, fill=blue!20, dashed, line width=0.5mm] (decoder_layer) [above = 3.44cm of cls_token] {\sffamily \huge Decoder Layer};
+    \node[block, fill=green!20] (linear) [above = 1.5cm of decoder_layer] {\sffamily \Large Linear \& Softmax};
     \draw[arrow] (decoder_layer) to (linear);
-    \node[block, fill=blue!20] (softmax) [above = 1cm of linear] {\sffamily \huge Softmax};
-    \draw[arrow] (linear) to (softmax);
-    \node[] (output_prob) [above = 1cm of softmax] {\sffamily \Large Output Probabilities};
-    \draw[arrow] (softmax) to (output_prob);
+    % \node[block, fill=blue!20] (softmax) [above = 1cm of linear] {\sffamily \huge Softmax};
+    % \draw[arrow] (linear) to (softmax);
+    \node[] (output_prob) [above = 1cm of linear] {\sffamily \Large Output Probabilities};
+    \draw[arrow] (linear) to (output_prob);
 
     % \node[
     %     rectangle, minimum width=5cm, minimum height=2cm,
