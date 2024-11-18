@@ -1,0 +1,374 @@
+\section{Introduction}
+\label{sec:intro}
+
+\begin{figure*}
+  \centering
+  \includegraphics[width=1.0\linewidth]{../colt2024/attention_sink_combine.png}
+  \caption{The phenomenon of attention sink in ViT models. (a) The [CLS] token consistently receives much higher (more than 10 times) attention values, while attention directed toward other tokens remains relatively low and stable throughout the layers. (b) Visualization of the attention scores across all 12 layers in deit\_small\_patch16\_224.fb\_in1k model. We visualize the starting $16\times16$ submatrix of the $197\times197$ attention maps of each layer. We observe that the model consistently focuses on the [CLS] token across all layers.}
+  \label{fig:attention-sink}
+\end{figure*}
+
+
+Transformer, introduced by Vaswani et al. \cite{vaswani2017attention}, utilize self-attention and cross-attention mechanisms to extract intrinsic features from text data. 
+Transformer includes both an encoder and a decoder, with the encoder extracting relevant information from input data and the decoder generating outputs based on this representation.
+Transformer and its improvements have achieved significant success in natural language processing (NLP) tasks \cite{vaswani2017attention, devlin2018bert,radford2018improving, brown2020language,ouyang2022training}.
+
+Improvements to the transformer architecture have led to two main branches: First, decoder-only models, like the GPT series \cite{radford2018improving, brown2020language,ouyang2022training}, are suited for generative tasks. Second, encoder-only models, such as BERT  \cite{devlin2018bert}, are tailored for classification tasks.
+
+The success of transformers in NLP inspired researchers to explore their application in computer vision (CV), leading to the development of Vision Transformer (ViT) \cite{dosovitskiy2021an}, which directly processes sequences of image patches for classification tasks.
+ViT can be viewed as an adaptation of the BERT model, an encoder-only model, for computer vision.
+It transforms image patches and positions into a sequence of input tokens, then adds a special [CLS] token at the beginning of the sequence to aggregate information for classification.
+
+The ViT model employs self-attention to learn relationships among these tokens, thus, resulting in three types of attention:
+First, self-attention among input tokens to representations image features. Second, cross-attention from the [CLS] token to input tokens to assess feature importance for classification. Third, attention from input tokens to the [CLS] token, which maybe unnecessary or even detrimental.
+The integration of these attention types can introduce irrelevant information and increase model complexity, and may compel the model to optimize conflicting objectives: guiding self-attention among patches while summarizing information for the linear classifier.
+
+One piece of evidence supporting our point of view is the attention sink phenomenon we found in ViT.
+The phenomenon of attention sink was first found in transformer-based language models \cite{xiaoefficient} refers to the tendency for a disproportionate amount of attention to be allocated to the initial tokens in a sequence, regardless of their semantic relevance.
+This occurs due to the SoftMax function in attention mechanisms, which requires attention scores to sum to one.
+Consequently, when there is no strong match for the current query among earlier tokens, excess attention is often directed towards these initial tokens, making them act as 'sinks' for unused attention values.
+
+Similar to the attention sink phenomenon observed in transformer-based language models, we have identified an analogous phenomenon in ViT models, as illustrated in \cref{fig:attention-sink}. In these models, a disproportionate amount of attention is allocated to the [CLS] token compared to other input tokens.
+This bias towards the [CLS] token arises from the mixture of input tokens and the [CLS] token within ViT models.
+The blending of these tokens can lead to conflicting objectives during attention processing, ultimately affecting the model's ability to effectively represent image features for classification tasks. 
+
+In order to address this mixture of input tokens and the [CLS] token, we refer to the original encoder-decoder architecture, and propose to explicitly separate the [CLS] token from the input tokens.
+Our new architecture use the original self-attention layers to capture the attention between input tokens, and introduce new cross-attention layers to extract the attention of the [CLS] token to the input tokens.
+We argue that this explicit separation avoids the contradiction and complexity of the traditional [CLS] token in ViT, and improves performance.
+
+
+\section{Phenomenon of \textit{Attention sink} in ViT models}
+
+To illustrate the phenomenon of attention sink, we downloaded two ViT-based image classification models \cite{touvron2021training} pre-trained on ImageNet-1k: deit\_small\_patch16\_224.fb\_in1k and deit\_base\_distilled\_patch16\_224.fb\_in1k, both obtained from the HuggingFace model repository.
+We then extracted the attention maps from all 12 layers of these models and computed the amount of attention allocated to the [CLS] token, alongside the mean attention value directed towards the other input tokens. 
+These results were then visualized in \cref{fig:attention-sink} to effectively demonstrate the attention distribution across the layers and highlight the disproportionate focus on the [CLS] token.
+
+This disproportionate focus on the [CLS] token suggests an over-centralization of attention resources on the classification token, potentially at the expense of richer information integration from other input tokens.
+This phenomenon could limit the model's ability to effectively leverage information from the entire input sequence, underscoring the need for explicitly separating the [CLS] token from the input tokens to mitigate attention sink.
+
+
+\section{Encoder-Decoder Image Transformer (EDIT)}
+
+Our proposed architecture is based on a novel encoder-decoder framework, where the encoder and decoder are aligned layer by layer.
+Unlike the traditional encoder-decoder architecture, where the decoder typically relies on the high-level representations from the encoder, our architecture maintains a layer-wise alignment, enabling both components to interact more effectively at each stage of processing.
+
+\subsection{Traditional Encoder-Decoder Architecture vs. Our Design}
+In the traditional encoder-decoder architecture, the encoder processes the input tokens (source tokens) and generates a set of hidden representations, progressing from low-level to high-level features.
+These representations are then passed to the decoder, which generates target token representations, typically starting from the highest-level representations of the input.
+
+However, this design raises a few natural questions: Why should the low-level representations of target tokens depend solely on the highest-level representations of the source tokens? Why not allow each decoder layer to attend to the corresponding layer of the encoder, preserving more detailed information at each stage?
+
+In contrast to this, our architecture avoids this high-level dependency by aligning the encoder and decoder layers.
+Specially, each layer of the decoder is aligned with its corresponding encoder layer, ensuring that the encoder and decoder operate in tandem at the same level of abstraction.
+
+\subsection{Layer-by-Layer Alignment}
+
+In our design, the encoder consists of standard self-attention layers that process the input tokens (image patches and position embeddings). The decoder, on the other hand, generates hidden representations for the [CLS] token by attending to the corresponding encoder layer and the previous decoder layer via a cross-attention mechanism.
+
+The $i$-th layer of the encoder processes the $i$-th level of the input tokens, while the $i$-th layer of the decoder generates the target token representations based on both the source information from the $i$-th encoder layer and the previously generated target tokens from the $(i-1)$-th decoder layer. This design enables the decoder to extract information starting from low-level features, progressively refining the representation at each layer, rather than relying only on the high-level encoded information from the final encoder layer.
+
+This layer-wise alignment has been shown to improve performance in tasks such as Neural Machine Translation (NMT), where precise alignment of encoder-decoder layers has been found to boost translation quality \cite{he2018layer}.
+
+\subsection{Model Architecture} \label{subsection:model-arch}
+
+The whole model architecture is illustrated in \cref{fig:whole-arch}, which mainly includes two parts:
+\begin{itemize}
+  \item Tokenizer Block: The input image patches are first transformed into a sequence of tokens via the Tokenizer block.
+  \item Backbone: The backbone of the model consists of $N$ identical layers, where each layer takes two parts: one from the encoder (tokens of image patches and position embeddings) and the other from the decoder ([CLS] token). These two inputs are processed in parallel, with outputs from the encoder and decoder feeding into the next layer. At the final layer, the output of the [CLS] token is passed through a linear transformation and a SoftMax layer to produce output probabilities.
+\end{itemize}
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{0.99\linewidth}
+    \includegraphics[width=1.\linewidth]{../colt2024/arch.pdf}
+    \caption{The whole architecture of EDIT model.}\label{fig:whole-arch}
+  \end{subfigure}
+  \vfill
+  \begin{subfigure}{0.99\linewidth}
+    \includegraphics[width=1.\linewidth]{../colt2024/arch2.pdf}
+    \caption{The layer architecture of EDIT model.}\label{fig:layer-arch}
+\end{subfigure}
+  \caption{The architectures of EDIT model.}
+  \label{fig:arch}
+\end{figure}
+
+
+Each layer of the model consists of two aligned sub-layers showed in \cref{fig:layer-arch}:
+\begin{itemize}
+  \item Encoder Layer: This layer is identical to the standard ViT layer, which includes a multi-head self-attention mechanism followed by a fully connected feed-forward network. Both sub-layers are preceded by layer normalization, with residual connections around each of them.
+  \item Decoder Layer: The decoder layer contains a single-head cross-attention mechanism, which enables the decoder to attend to both the encoder's output and the previously generated decoder output. This cross-attention mechanism is followed by a layer normalization and a residual connection.
+\end{itemize}
+
+% \textbf{Weight Sharing in Decoder Layers.} 
+It is important to note that the decoder layers in our model share weights, as indicated by the dashed outline in the diagram in \cref{fig:whole-arch} and \cref{fig:layer-arch}. This weight-sharing strategy helps reduce model complexity and ensures consistent information flow across layers.
+
+By aligning the encoder and decoder layers and incorporating cross-attention at each stage, our architecture improves the efficiency and effectiveness of information processing in ViT-based image classification tasks. The design ensures that the decoder has access to more fine-grained information, which helps in better feature extraction and more accurate classification, leading to improved overall model performance.
+
+
+\section{Experiments}
+
+\subsection{Limitation of computational resources}
+Due to the limitation of having only NVIDIA 3090/4090 GPU cards, which do not support distributed training across nodes, we are restricted in training large models on extensive datasets. As a result, we have limited our largest model to EDIT-Base and constrained our largest dataset to a selected subset of ImageNet-21K. This restriction ensures that our experiments remain feasible within the computational resources available.
+
+\subsection{Datasets} \label{subsec:datasets}
+For pre-training, we use two large-scale image datasets.
+First is \textbf{ImageNet-1k}, i.e. the ILSVRC-2012 ImageNet dataset \cite{deng2009imagenet}, containing 1,000 classes and approximately 1.3 million images.
+Second is a selected subset of the ImageNet-21k dataset \cite{ridnik2021imagenetk,deng2009imagenet}.
+% due to computational resource constraints. 
+The original ImageNet-21k contains around 14 million images and 21,000 object categories. We first clean the dataset by removing infrequent classes with fewer than 500 images, resulting in 12,358,638 images across 11,221 classes. From this cleaned subset, we randomly select 6,000 classes, resulting in 6,633,989 images across 6,000 classes. We then allocate 50 images per class to create a standardized validation split. The resulting dataset are referred as \textbf{ImageNet-6k}.
+%, retains about one-third of the original classes but only removes 43\% of the initial images.
+
+For transfer learning evaluation, we use 4 popular computer vision datasets: CIFAR-100 \cite{krizhevsky2009learning}, Oxford Flowers-102 \cite{Nilsback08}, Describable Textures Dataset (DTD) \cite{cimpoi14describing}, and Caltech-256 \cite{griffin_holub_perona_2022}.
+
+\subsection{Model variants}
+We base the configurations of EDIT models on those used in DeiT3 \cite{touvron2022deit} and DeiT \cite{touvron2021training}, as detailed in \cref{tab:edit-variants}. The EDIT-Small and EDIT-Base models are adopted directly from DeiT3-Small and DeiT3-Base, while EDIT-Tiny integrates the original DeiT-Tiny model due to the absence of a DeiT3-Tiny configuration.
+As described in \cref{subsection:model-arch}, the EDIT models are constructed by adding iterative, weight-sharing decoder layers to the DeiT3 architecture. Given computational constraints, we limit our configurations to models no larger than DeiT3-Base.
+
+\begin{table}
+  \centering
+  \begin{tabular}{@{}l|rrrr}
+    \toprule
+    Model & Hidden size & Heads & Params & FLOPs \\  %& Layers 
+    \midrule
+    EDIT-Tiny & 192 & 3 & 5.82M & 1.42B \\
+    EDIT-Small & 384 & 6 & 22.30M & 5.28B \\
+    EDIT-Base & 768 & 12 & 87.76M & 20.27B \\
+    \bottomrule
+  \end{tabular}
+  \caption{Variants of our EDIT architecture}
+  \label{tab:edit-variants}
+\end{table}
+
+\begin{table} [h!]
+  \centering
+  \begin{tabular}{l|r|rr}
+    \toprule
+    Methods & ImageNet-1k & \multicolumn{2}{c}{ImageNet-6k}  \\
+     & & Pretrain & Transfer \\
+    \midrule
+    Epochs & 800 & 100 & 400 \\
+    Batch size & 2048 & 2048 & 768 \\
+    Optimizer & LAMB & LAMB & LAMB \\
+    Learning rate & $3.10^{-3}$ & $3.10^{-3}$ & $1.10^{-4}$ \\
+    Learning rate decay & cosine & cosine & cosine \\
+    Weight decay & 0.02 & 0.02 & 0.01 \\
+    Warmup epochs & 5 & 5 & 5 \\
+    \hline
+    Label smoothing $\varepsilon$ & \ding{55} & 0.1 & 0.1 \\
+    % Dropout &  &  &  \\
+    Stoch. Depth & 0.05 & 0.05 & 0.1 \\
+    Repeated Aug & \checkmark & \ding{55} & \ding{55} \\
+    Gradient Clip & 1.0 & 1.0 & \ding{55} \\
+    \hline
+    H. flip & \checkmark & \checkmark & \ding{55} \\
+    RRC & \checkmark  & \ding{55} & \ding{55} \\
+    % Rand Augment &  &  &  \\
+    3 Augment & \checkmark  & \checkmark  & \checkmark  \\
+    LayerScale & \checkmark  & \checkmark  & \checkmark  \\
+    Mixup alpha & 0.8 & \ding{55} & \ding{55} \\
+    Cutmix alpha & 1.0 & 1.0 & 1.0 \\
+    % Erasing prob. &  &  &  \\
+    ColorJitter & 0.3 & 0.3 & \ding{55}  \\
+    \hline
+    Eval crop ratio & 1.0 & 1.0 & 1.0 \\
+    \hline
+    Loss & BCE & CE & CE \\
+    \bottomrule
+  \end{tabular}
+  \caption{Hyper-parameters of our models when trained on ImageNet-1k and ImageNet-6k, and transferred to CIFAR-100, Flowers-102, DTD and Caltech-256 datasets.}
+  \label{tab:training-procedures}
+\end{table}
+
+\subsection{Training and transfer learning procedures}
+We first train our models on ImageNet-1k and ImageNet-6k datasets, then transfer them to four downstream datasets: CIFAR-100, Flowers-102, DTD and Caltech-256.
+\cref{tab:training-procedures} indicates the hyper-parameters that we use by default for all our experiments.
+
+Our training procedures follow those of DeiT3 with a few adjustments:
+First, for the EDIT-Tiny model, the stochastic depth rate is reduced from 0.05 to zero, as suggested by the DeiT-Tiny configuration due to the lack of a DeiT3-Tiny model.
+Second, due to computational constraints, the three EDIT models are trained for 100 epochs on the ImageNet-6k dataset, compared to the 240 epochs used for DeiT3 models on ImageNet-21k.
+Last, due to computational constraints, we use gradient accumulation in the timm library \cite{rw2019timm} to reduce GPU memory requirements for the DeiT3-Base and EDIT-Base models. This adjustment results in a slight decrease in accuracy on ImageNet-1k, from 82.86 to 82.77, in our experiments.
+
+For transfer learning, we reduce learning rate and batch size, adjust weight decay and stochastic depth rate, etc. to prevent overfitting on smaller datasets.
+
+\subsection{Comparison to DeiT3 models}
+
+The comparison of our models to DeiT3 models is shown in \cref{tab:comparison-edit-deit3} and \cref{fig:comparison-edit-deit3}.
+
+As shown in \cref{tab:comparison-edit-deit3}, the EDIT models have a slight increase in parameter count parameter count and FLOPs compared to their DeiT3 counterparts, with EDIT-Tiny, EDIT-Small, and EDIT-Base showing a 2\%, 1\%, and 1\% increase in parameters, a 12\%, 14\%, and 15\% increase in FLOPs, respectively. This increase in computational cost is expected due to the iterative and weight-sharing decoder layers added in EDIT models.
+
+On ImageNet-1k, we observe that the accuracy improvement of EDIT over DeiT3 diminishes as model size increase from Tiny to Small and then to Base.
+This trend suggests that for a relatively smaller dataset like ImageNet-1k, larger models may encounter diminishing returns due to insufficient data to fully leverage the added capacity.
+As model size increases without a corresponding increase in data volume or complexity, the model's capacity may become underutilized, resulting in smaller gains.
+
+Conversely, on the larger ImageNet-6k dataset, the accuracy improvement of EDIT over DeiT3 grows as model size scales from Tiny to Small to Base.
+This observation aligns with the deep learning scaling law \cite{Zhai_2022_CVPR,kaplan2020scaling}, as larger models can more effectively leverage the additional data and complexity provided by the ImageNet-6k dataset.
+The increase data volume and diversity allow larger models to better generalize, thus enhancing the benefits of the EDIT architecture as model size increase.
+
+An additional insight from these observation is that a mismatch between model size and data size can lead to suboptimal performance in either direction.
+When a small model is paired with a large dataset, underfitting can occur, as the model lacks sufficient capacity to capture the full complexity of the data.
+Conversely, a large model paired with a small dataset can lead to overfitting, as the model may focus on dataset-specific noise rather than learning robust, generalizable patterns. This underlines the importance of selecting a model size that aligns with the scale and diversity of the training data to achieve balanced and effective learning.
+
+In summary, these results illustrate that while the EDIT models bring slight increase in computational cost, they generally offer accuracy improvements, especially on larger datasets like ImageNet-6k.
+The scaling law in vision models is evident here: larger datasets effectively utilize the capacity of larger models, while smaller datasets may lead to overfitting in high-capacity architectures.
+
+\begin{table} [h!]
+  \centering
+  \begin{tabular}{l|llll}
+    \toprule
+    Model & Params & FLOPs & INet-1k  & INet-6k  \\
+     &  &  & top1(\%) & top1(\%) \\
+    \midrule
+    EDIT-Tiny & 5.82M & 1.42B & 75.53 & 49.02 \\
+    DeiT3-Tiny & 5.71M & 1.26B & 73.59 & 48.77 \\
+    & \small\textbf{($\uparrow$2\%)} & \small\textbf{($\uparrow$12\%)} & \small\textbf{($\uparrow$1.96)} &  \small\textbf{($\uparrow$0.25)} \\
+    \midrule
+    EDIT-Small & 22.30M & 5.28B & 81.83 & 54.48 \\
+    Deit3-Small & 22.05M & 4.61B & 81.32 & 54.01 \\
+    & \small\textbf{($\uparrow$1\%)} & \small\textbf{($\uparrow$14\%)} & \small\textbf{($\uparrow$0.51)} & \small\textbf{($\uparrow$0.47)} \\
+    \midrule
+    EDIT-Base & 87.76M & 20.27B & 82.70 & 56.27 \\
+    Deit3-Base & 86.56M & 17.58B & 82.77 & 55.46 \\
+    & \small\textbf{($\uparrow$1\%)} & \small\textbf{($\uparrow$15\%)} & \small\textbf{($\downarrow$0.07)} & \small\textbf{($\uparrow$0.81)} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Comparison of parameters, throughput, and accuracy for EDIT and DeiT3 models when trained on ImageNet-1k and ImageNet-6k.}
+  \label{tab:comparison-edit-deit3}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.99\linewidth]{../colt2024/edit_deit3_compare.png}
+  \caption{Comparison of top-1 accuracy between EDIT model and DeiT3 models when trained on (a) ImageNet-1k and (b) ImageNet-6k.}\label{fig:comparison-edit-deit3}
+\end{figure}
+
+\subsection{Interpreting EDIT models thought attention maps}
+
+The interpretability of vision transformers \cite{10657171,9577970,abnar-zuidema-2020-quantifying,kashefi2023explainability} is crucial in understanding how these models process visual data to make decisions, shedding light on their inner mechanisms.
+The goal is to discern how ViTs allocate attention across different parts of an image as they progress through each layer, gradually focusing on the most relevant features that contribute to the final classification or recognition.
+
+We observe that our EDIT models are naturally interpretable by the sequential attention maps of each layer.
+The interpretability is likely caused by the encoder-decoder architecture with iteratively weight-sharing decoder layers that explicitly separates the [CLS] token and input tokens.
+We illustrate the interpretability by two examples as shown in \cref{fig:visualize}.
+
+First example is a beautiful dessert. The main part of the dessert is a triangular piece of chocolate cake. On top of the cake, there is a dollop of white cream, and the cream is decorated with small chocolate balls. The chocolate cake is placed on a layer of dark-brown chocolate sauce, which forms a circular base on the white plate. 
+
+\cref{fig:visualize-attn-cake} illustrate how our EDIT model learns to identify the dessert in the picture.
+In the first few layers, the model primarily focuses on the broader context of the image, capturing the edges of the white plate and the outer boundary of the dark-brown chocolate sauce. This stage reflects the model’s early processing, where it seeks to understand the overall scene layout and identify significant boundaries.
+As the model progresses through the layers, it begins to narrow its focus, reducing attention on the outer plate edge. This refinement indicates that the model has started to prioritize regions that are more relevant to the dessert itself, recognizing that the plate’s outer edge is less essential for identification.
+In the later layers, the model increasingly concentrates its attention on the central part of the dessert, particularly the triangular chocolate piece and the cream with chocolate balls. By the final layers, attention to extraneous parts of the image is minimized, and focus is directed to the key visual elements crucial for identifying the dessert.
+
+Second example is a lovely white kitten with a pair of bright blue eyes in an indoor environment with some furniture and items in the background.
+
+\cref{fig:visualize-attn-cat} illustrate how our EDIT model learns to identify the kitten in the picture.
+The model begins by observing general shapes, including background items and the kitten’s silhouette. With more layers, it gradually narrows down to the kitten’s distinguishing features, particularly the face and bright blue eyes, which are essential for identifying the kitten accurately.
+
+This progression reveal the inner working mechanism of EDIT: starting from a broad view and progressively narrowing focus to critical features. 
+Through this stepwise attention shift across layers, the EDIT model demonstrates a refined interpretability, effectively filtering out non-essential parts of the image.
+% The attention maps highlight how the model discards non-essential details, ultimately enhancing its ability to recognize the dessert through essential features.
+
+
+\begin{figure}
+  \centering
+  \begin{subfigure}{0.99\linewidth}
+    \includegraphics[width=1.\linewidth]{../colt2024/cake_cat.png}
+    \caption{A dessert picture and a cat picture.}\label{fig:cake-cat}
+  \end{subfigure}
+  \vfill
+  \begin{subfigure}{0.99\linewidth}
+    \includegraphics[width=1.\linewidth]{../colt2024/visualize_attn_cake.png}
+    \caption{The attention maps of 12 layers in EDIT-Small model when deal with the dessert picture.}\label{fig:visualize-attn-cake}
+  \end{subfigure}
+  \vfill
+  \begin{subfigure}{0.99\linewidth}
+    \includegraphics[width=1.\linewidth]{../colt2024/visualize_attn_cat.png}
+    \caption{The attention maps of 12 layers in EDIT-Small model when deal with the cat picture.}\label{fig:visualize-attn-cat}
+\end{subfigure}
+  \caption{Visualization of the attention maps of all 12 layers in EDIT-Small model.}
+  \label{fig:visualize}
+\end{figure}
+
+
+\subsection{Transfer learning}
+In order to evaluate the quality of the EDIT models learned through our training procedure we evaluated them with four transfer learning tasks.
+We focus on the performance of EDIT-Base model pre-trained on ImageNet-6k at resolution $224 \times 224$. 
+The transfer learning procedures are also indicated in \cref{tab:training-procedures}.
+Our results are presented in \cref{tab:transfer-learning}.
+The results indicate that EDIT-Base outperforms DeiT3-Base across all tasks, albeit by small margins.
+An exception is the task of classification on DTD dataset where a 1\% accuracy improvement is achieved.
+The results highlight the effectiveness of EDIT-Base in transferring knowledge across diverse datasets, and suggest that the EDIT model may better capture transferable features than DeiT3 model.
+
+\begin{table} [h!]
+  \centering
+  \begin{tabular}{l|rr}
+    \toprule
+    Model & CIFAR-100 & Flowers-102  \\
+    \midrule
+    EDIT-Base & \textbf{93.2} & \textbf{99.3} \\
+    Deit3-Base & 93 & 99.2 \\
+    \midrule
+    & DTD  & Caltech-256  \\
+    \midrule
+    EDIT-Base & \textbf{81.3} & \textbf{95} \\
+    Deit3-Base & 80.3 & 94.8 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Comparison between EDIT-Base and DeiT3-Base models on four different transfer learning tasks with ImageNet-6k pre-training.}
+  \label{tab:transfer-learning}
+\end{table}
+
+\section{Conclusion}
+In this work, we introduced EDIT, an encoder-decoder image transformer designed to address the attention sink phenomenon prevalent in ViT models. By aligning encoder and decoder layers and incorporating layer-specific cross-attention, EDIT avoids the traditional [CLS] token integration issues that contribute to suboptimal attention distribution. 
+Our experiments demonstrate that EDIT consistently outperforms DeiT3 counterparts across various tasks, particularly on larger datasets where model capacity can be effectively utilized. 
+The alignment with deep learning scaling laws further supports EDIT’s suitability for scalable visual tasks. 
+Additionally, the sequential attention maps show that EDIT progressively narrows its focus on relevant features, enhancing model interpretability. Future work could extend EDIT to larger datasets to explore further its capacity, and other vision applications, potentially enhancing generalization and interpretability in complex visual recognition tasks.
+\section{Related work}
+
+\subsection{Vision Transformer (ViT)}
+In ViT, an image $\mathbf{x} \in \mathbb{R} ^ {h \times w \times c}$ is split into a sequence of flattened patches $\mathbf{x} \in \mathbb{R} ^ {n \times (p^2 \cdot c)}$ where $c$ is the number of channels, $(h,w)$ is the resolution of the original image, $(p,p)$ is the resolution of each image patch, and $n=hw/p^2$ is the number of patches.
+Each flattened patch is then linearly projected to a patch embedding to produce a sequence of patch embeddings $\mathbf{x}_p \in \mathbb{R} ^ {n \times d}$ where $d$ is the embedded dimension size (or model dimension size).
+To capture positional information, learnable position embeddings $\mathbf{pos} \in \mathbb{R} ^ {n \times d}$ are added to the sequence of patch embeddings to get the resulting sequence of patch and position embeddings $\mathbf{p}_0 = \mathbf{x}_p + \mathbf{pos}$.
+After that, a learnable class embedding $\mathbf{c}_0 \in \mathbb{R}^d$ is concatenated to the sequence of patch and position embedding to produce the input sequence of tokens $\mathbf{z}_0 = \mathrm{concat}(\mathbf{p}_0,  \mathbf{c}_0) \in \mathbb{R} ^ {(n+1) \times d}$ for the ViT backbone.
+
+The ViT backbone composed of $l$ layers is applied to the sequence of tokens $\mathbf{z}_0$ to generate a sequence of encodings $\mathbf{z}_l \in \mathbb{R} ^ {(n+1) \times d}$.
+A ViT layer consists of a multi-head self-attention (MSA) block followed by a feed-forward network (FFN) block with layer norm (LN) applied before every block and residual connections added after every block:
+\begin{eqnarray}
+  \mathbf{a_{i-1}} &=& \mathbf{MSA}(\mathbf{LN}(\mathbf{z_{i-1}})) + \mathbf{z_{i-1}} , \\
+  \mathbf{z_{i}} &=& \mathbf{FFN}(\mathbf{LN}(\mathbf{a_{i-1}})) + \mathbf{a_{i-1}},
+\end{eqnarray}
+where $i \in \{1,\ldots,l\}$.
+
+The self-attention mechanism is composed of three point-wise linear layers mapping tokens to three intermediate representations, queries $\mathbf{q} \in \mathbb{R}^{(n+1) \times d}$, keys $\mathbf{k} \in \mathbb{R}^{(n+1) \times d}$ and values $\mathbf{v} \in \mathbb{R}^{(n+1) \times d}$.
+Self-attention is then computed as follows:
+\begin{equation}
+   \mathbf{MSA}(\mathbf{q}, \mathbf{k}, \mathbf{v}) = \mathrm{softmax} \left( \frac{\mathbf{q}\mathbf{k}^T}{\sqrt{d}} \right)  \mathbf{v}.
+\end{equation}
+
+A FFN block is applied after the MSA block. It consists of two linear transformations and a nonlinear activation function within them, and can be denoted as the following function:
+\begin{equation}
+  \mathbf{FFN}(\mathbf{a}) = \mathbf{w_2} \cdot \sigma(\mathbf{w_1} \cdot \mathbf{a}),
+\end{equation}
+where $\mathbf{w_1}$ and $\mathbf{w_2}$ are two learnable matrices of the two linear transformations, $\sigma$ represents the nonlinear activation function, such as GELU, and  $\mathbf{a}$ is the output of the MSA block.
+
+The output of ViT backbone $\mathbf{z}_l$ is feed into the ViT head, who first splits the generated encodings $\mathbf{z}_l$ into two partitions, the patch and position encodings $\mathbf{p}_l \in \mathbb{R} ^ {n \times d}$ and the class encoding $\mathbf{c}_l \in \mathbb{R}^d$, then extracts the class encoding.
+After that, a linear transformation is applied to the class encoding $\mathbf{c}_l$ to produce a logits vector. A softmax layer is then used to transform the logits into class probabilities.
+
+Researchers have recognized the problem of mixing input tokens with the [CLS]. In a later paper \cite{beyer2022better}, Beyer, one of the authors of the ViT model, have suggested that using 1D Global Average Pooling in place of the [CLS] token could enhance performance.
+Touvron et al. \cite{touvron2021going} proposed to only allow the [CLS] token to attend to the patch tokens, rather than the opposite.
+
+\subsection{Encoder-Decoder architecture}
+The original transformer architecture, introduced by Vaswani et al. \cite{vaswani2017attention}, was designed for sequence-to-sequence tasks such as language translation, specially English-to-French and English-to-German.
+It consists of two main components: an encoder and a decoder.
+The encoder is responsible for processing and understanding the input text (source language). It converts the input sequence into a continuous representation, or embedding, which captures the relevant information from the source text. This embedding is then passed to the decoder for further processing.
+The decoder takes the continuous representation from the encoder along with the previously generated translated tokens, and generates the output sequence (target language). It uses the encoder's output and the autoregressive property of the model to sequentially generate the translated text, predicting one token at a time based on the context provided by the encoder's embeddings and prior decoded tokens.
+Together, the encoder and decoder form the basis of the transformer architecture, which enables effective handling of complex sequence-to-sequence tasks by leveraging self-attention and cross-attention mechanisms for capturing dependencies across tokens in the input and output sequences.
+
+Recent advancements in encoder-decoder transformer models, such as BART \cite{lewis2020bart} and T5 \cite{raffel2020exploring,tay2023ul}, have significantly enhanced performance in various NLP tasks. These models combine innovative techniques, pre-training objectives, and architectural modifications to leverage the strengths of both the encoder and the decoder components.
+Encoder-decoder models are particularly effective for tasks involving input and output sequences with varying lengths or structures. They excel in applications where it is crucial to model the relationships between elements in both sequences. Common use cases include text translation, summarization, question answering, and text generation. By capturing contextual information in the input sequence and generating a coherent output, these models have become central to a variety of NLP tasks.
+
+% \subsection{Self-supervised learning}
+% Recent advancements in self-supervised learning (SSL) \cite{he2022masked,wang2023image,caron2021emerging,oquab2024dinov} have increasingly utilized ViT as backbones, particularly in self-distillation models.
+% A self-distillation model is a type of self-supervised learning framework in which a neural network (the student) is trained to improve its performance by learning from the predictions of its own earlier iteration or from another instance of itself (the teacher).
+% In this process, the model utilizes its own outputs as pseudo-labels or guidance for training, rather than relying on external labels.
+
+% DINO (Self-DIstillation with NO labels) \cite{caron2021emerging,oquab2024dinov} is a prominent self-distillation model that employs a ViT backbone to achieve state-of-the-art in self-supervised image representation learning. It utilizes a teacher-student framework where the student model learns from the teacher's outputs, which are themselves predictions derived from the same model. The teacher's parameters are freezed at the backpropagation stage, and then are updated from the student's parameters using exponential moving averages.
+

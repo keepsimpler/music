@@ -29,20 +29,20 @@
  
 \begin{tikzpicture}
 
-    \node[tablecell] (image1) at (0,0) {\includegraphics[]{images/lenna_1.jpg}};
-    \node[tablecell] (image2) [right = 0mm of image1] {\includegraphics[]{images/lenna_2.jpg}};
-    \node[tablecell] (image3) [right = 0mm of image2] {\includegraphics[]{images/lenna_3.jpg}};
-    \node[tablecell] (image4) [right = 0mm of image3] {\includegraphics[]{images/lenna_4.jpg}};
-    \node[tablecell] (image5) [right = 0mm of image4] {\includegraphics[]{images/lenna_5.jpg}};
-    \node[tablecell] (image6) [right = 0mm of image5] {\includegraphics[]{images/lenna_6.jpg}};
-    \node[tablecell] (image7) [right = 0mm of image6] {\includegraphics[]{images/lenna_7.jpg}};
-    \node[tablecell] (image8) [right = 0mm of image7] {\includegraphics[]{images/lenna_8.jpg}};
-    \node[tablecell] (image9) [right = 0mm of image8] {\includegraphics[]{images/lenna_9.jpg}};
+    \node[tablecell] (image1) at (0,0) {\includegraphics[]{images/lenna_1.png}};
+    \node[tablecell] (image2) [right = 0mm of image1] {\includegraphics[]{images/lenna_2.png}};
+    \node[tablecell] (image3) [right = 0mm of image2] {\includegraphics[]{images/lenna_3.png}};
+    \node[tablecell] (image4) [right = 0mm of image3] {\includegraphics[]{images/lenna_4.png}};
+    \node[tablecell] (image5) [right = 0mm of image4] {\includegraphics[]{images/lenna_5.png}};
+    \node[tablecell] (image6) [right = 0mm of image5] {\includegraphics[]{images/lenna_6.png}};
+    \node[tablecell] (image7) [right = 0mm of image6] {\includegraphics[]{images/lenna_7.png}};
+    \node[tablecell] (image8) [right = 0mm of image7] {\includegraphics[]{images/lenna_8.png}};
+    \node[tablecell] (image9) [right = 0mm of image8] {\includegraphics[]{images/lenna_9.png}};
     \node[] (image_patches) [below=0 of image5] {\sffamily \Large Image Patches};
 
     \node[tablecell, fill = gray!20, draw=black, line width=0.1mm, rounded corners=2pt] (cls_token) [right = 2cm of image9] {};
     \node[] (text_cls_token) [below=0 of cls_token] {\sffamily \Large [CLS] Token};
-
+ 
 
     \node[block, fill=orange!30] (tokenizer) [above = 1cm of image5] {\sffamily \Large Tokenizer};
     \node[block, fill=blue!20, line width=0.5mm] (encoder_layer) [above = 1.5cm of tokenizer] {\sffamily \huge Encoder Layer};
