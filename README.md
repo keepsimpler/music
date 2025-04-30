@@ -3,6 +3,7 @@ record bits of my tech
 
 ## Models
 1. [**Text-to-SQL**, OmniSQL](https://github.com/RUCKBReasoning/OmniSQL)
+2. [地理 Copernicus Foundation Model](https://github.com/zhu-xlab/Copernicus-FM)
 
 ## Agents
 1. [Openai-agents-python](https://github.com/openai/openai-agents-python)
@@ -35,6 +36,7 @@ record bits of my tech
 ## Lessons
 1. [Microsoft, Generative ai for beginners](https://github.com/microsoft/generative-ai-for-beginners)
 2. [Multi AI Agent Systems with crewAI](https://www.deeplearning.ai/short-courses/multi-ai-agent-systems-with-crewai/)
+3. [Building DeepSeek R1 from Scratch with base model Qwen2.5–0.5B-Instruct](https://github.com/FareedKhan-dev/train-deepseek-r1/tree/main)
 
 ## Tools
 1. [vllm](https://github.com/vllm-project/vllm)
