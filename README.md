@@ -1,6 +1,10 @@
 # music of my technical life
 record bits of my tech
 
+## Harness Engineering & Context Engineering & Prompt Engineering
+
+1. [OpenSpec实战详解](https://juejin.cn/post/7620718787835510784)
+
 ## Models
 1. [**Text-to-SQL**, OmniSQL](https://github.com/RUCKBReasoning/OmniSQL)
 2. [地理 Copernicus Foundation Model](https://github.com/zhu-xlab/Copernicus-FM)
