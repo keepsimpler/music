@@ -4,6 +4,7 @@ record bits of my tech
 ## Harness Engineering & Context Engineering & Prompt Engineering
 
 1. [OpenSpec实战详解](https://juejin.cn/post/7620718787835510784)
+2. [Vibe Coding AReaL：零手打代码开发分布式 RL 训练框架](https://zhuanlan.zhihu.com/p/2003269671630165191)
 
 ## Models
 1. [**Text-to-SQL**, OmniSQL](https://github.com/RUCKBReasoning/OmniSQL)
